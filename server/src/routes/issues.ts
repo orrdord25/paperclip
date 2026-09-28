@@ -14698,6 +14698,13 @@ export function issueRoutes(
         if (commentBody && comment) {
           const assigneeId = issue.assigneeAgentId;
           const actorIsAgent = actor.actorType === "agent";
+          const acknowledgementOnly = isAgentAcknowledgementOnly({
+            body: commentBody,
+            actorType: actor.actorType,
+            resumeRequested: resumeRequested === true,
+            reopened,
+            hasAttachments: Boolean(attachmentComment),
+          });
           const selfComment =
             (actorIsAgent && actor.actorId === assigneeId) ||
             commentIsFromAssigneeRun;
@@ -14720,7 +14727,8 @@ export function issueRoutes(
             assigneeId &&
             !assigneeChanged &&
             !goalCommentSteered &&
-            shouldWakeAssigneeForComment
+            shouldWakeAssigneeForComment &&
+            !acknowledgementOnly
           ) {
             addWakeup(assigneeId, {
               source: "automation",
@@ -14783,6 +14791,7 @@ export function issueRoutes(
           }
 
           for (const mentionedId of mentionedIds) {
+            if (acknowledgementOnly) continue;
             if (
               (actor.actorType === "agent" && actor.actorId === mentionedId) ||
               (commentIsFromAssigneeRun && mentionedId === assigneeId)
@@ -18112,6 +18121,13 @@ export function issueRoutes(
           })) ?? currentIssue;
         const assigneeId = wakeIssueSnapshot.assigneeAgentId;
         const actorIsAgent = actor.actorType === "agent";
+        const acknowledgementOnly = isAgentAcknowledgementOnly({
+          body: comment.body,
+          actorType: actor.actorType,
+          resumeRequested: resumeRequested === true,
+          reopened,
+          hasAttachments: Boolean(req.body.attachmentIds?.length),
+        });
         const selfComment =
           (actorIsAgent && actor.actorId === assigneeId) ||
           commentIsFromAssigneeRun;
@@ -18128,7 +18144,7 @@ export function issueRoutes(
           reopened,
           currentStatus: wakeIssueSnapshot.status,
         });
-        if (assigneeId && !goalCommentSteered && shouldWakeAssigneeForComment) {
+        if (assigneeId && !goalCommentSteered && shouldWakeAssigneeForComment && !acknowledgementOnly) {
           if (reopened) {
             addWakeup(assigneeId, {
               source: "automation",
@@ -18217,6 +18233,7 @@ export function issueRoutes(
         }
 
         for (const mentionedId of mentionedIds) {
+          if (acknowledgementOnly) continue;
           if (
             (actorIsAgent && actor.actorId === mentionedId) ||
             (commentIsFromAssigneeRun && mentionedId === assigneeId)
